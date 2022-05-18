@@ -81,8 +81,8 @@ function render(){
     
     for (var i = 0; i < projectiles.length; i++){
         var proj = projectiles[i];
-        proj.position[0] += proj.velocity[0];
-        proj.position[1] += proj.velocity[1];
+        proj.position[0] += proj.velocity[0] * deltaTime;
+        proj.position[1] += proj.velocity[1] * deltaTime;
         context.beginPath();
         context.fillStyle = "#FF0000";
         context.arc(proj.position[0] * canvas.width, proj.position[1] * canvas.height, 0.025 * canvas.width, 0, 2*Math.PI);
@@ -153,7 +153,7 @@ function click(e){
 		]
         if (mousePos.every(i=>0<i && i<1)){
             vector = [mousePos[0] - (player.position[0] + 0.05), mousePos[1] - (player.position[1] + 0.05)]
-            vector = normalize(vector, 0.02)
+            vector = normalize(vector, 0.5)
             projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0] * 4 , player.position[1] + 0.05 + vector[1] * 4], vector, player.id))
             socket.emit("projectile", projectiles[projectiles.length-1])
         }
@@ -162,9 +162,9 @@ function click(e){
 
 socket.on("connect", function (){
     player.id = socket.io.engine.id;
-    setInterval(render, 100/3);
-    setInterval(sendUpdate, 100);
     socket.emit("join", player);
+    setInterval(render, 100/3);
+    setInterval(sendUpdate, 200);
 })
     
 socket.on("FetchedPlayers", function (data){
@@ -181,7 +181,7 @@ function sendUpdate(){
 
 socket.on("update", function(data){
     console.log(data);
-    var newVelocity = [(data.position[0] - enemies[data.id].position[0]) / 5, (data.position[1] - enemies[data.id].position[1]) / 5]
+    var newVelocity = [(data.position[0] - enemies[data.id].position[0])*5, (data.position[1] - enemies[data.id].position[1])*5]
     enemies[data.id].velocity = newVelocity;
 })
 
