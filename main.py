@@ -14,7 +14,7 @@ serverPlayers = {}
 
 #Sets up flask and socketio server
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode=async_mode, ping_interval=3, ping_timeout=3)
+socketio = SocketIO(app, async_mode=async_mode, ping_interval=30, ping_timeout=30)
 
 #Disables logging
 log = logging.getLogger('werkzeug')

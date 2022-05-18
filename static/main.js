@@ -8,7 +8,8 @@ var enemies = {};
 var deltaTime = 1;
 var lastTime = new Date().getTime();
 var acceleration = 1.4;
-var maxSpeed = 0.5;
+var maxSpeed = 0.25;
+var fetched = false;
 
 var hash = window.location.hash
 if (hash == "" || hash == "#"){
@@ -43,6 +44,8 @@ class Player{
         this.id = id;
         this.hits = 0;
         this.color = color;
+        this.lastUpdate = new Date().getTime();
+        this.nextPos = position;
     }
 }
 
@@ -75,8 +78,8 @@ function render(){
         player.velocity[1] = Math.max(player.velocity[1] - acceleration*deltaTime, 0);
     }
 
-    if (Math.sqrt(player.velocity[0] ** 2 + player.velocity[1] ** 2) > 0.5){
-        player.velocity = normalize(player.velocity, 0.5);
+    if (Math.sqrt(player.velocity[0] ** 2 + player.velocity[1] ** 2) > maxSpeed){
+        player.velocity = normalize(player.velocity, maxSpeed);
     }
     
     for (var i = 0; i < projectiles.length; i++){
@@ -105,6 +108,9 @@ function render(){
         var enemy = enemies[i];
         enemy.position[0] = Math.max(Math.min(enemy.position[0] + enemy.velocity[0]*deltaTime, 0.9), 0);
         enemy.position[1] = Math.max(Math.min(enemy.position[1] + enemy.velocity[1]*deltaTime, 0.9), 0);
+        if (Math.abs(enemy.position[0]-enemy.nextPos[0]) < 0.01 &&Math.abs(enemy.position[1]-enemy.nextPos[1]) < 0.01){
+            enemy.velocity = [0,0];
+        }
         context.beginPath();
         context.fillStyle = enemy.color;
         context.fillRect((enemy.position[0] * canvas.width), (enemy.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
@@ -163,12 +169,13 @@ function click(e){
 socket.on("connect", function (){
     player.id = socket.io.engine.id;
     socket.emit("join", player);
-    setInterval(render, 100/3);
-    setInterval(sendUpdate, 200);
 })
     
 socket.on("FetchedPlayers", function (data){
     enemies = JSON.parse(data);
+    setInterval(render, 30);
+    setInterval(sendUpdate, 150);
+    fetched = true;
 })
 
 socket.on("NewPlayer", function (data){
@@ -180,13 +187,19 @@ function sendUpdate(){
 }
 
 socket.on("update", function(data){
-    console.log(data);
-    var newVelocity = [(data.position[0] - enemies[data.id].position[0])*5, (data.position[1] - enemies[data.id].position[1])*5]
-    enemies[data.id].velocity = newVelocity;
+    if (fetched){
+        var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
+        console.log(deltaUpdate)
+        if (deltaUpdate > 0.3){
+            var newVelocity = [(data.position[0] - enemies[data.id].position[0])*2/deltaUpdate, (data.position[1] - enemies[data.id].position[1])*2/deltaUpdate]
+            enemies[data.id].velocity = newVelocity;
+            enemies[data.id].lastUpdate = new Date().getTime();
+            enemies[data.id].nextPos = data.position;
+        }
+    }
 })
 
 socket.on("Left", function(id){
-    console.log(id)
     delete enemies[id];
 })
 
