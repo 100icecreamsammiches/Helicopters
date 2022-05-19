@@ -3,7 +3,7 @@ const canvas = document.getElementById("main-canvas");
 const context = canvas.getContext("2d");
 const colors = ["Red", "Green", "Blue", "Green", "Purple", "Cyan", "Yellow", "Orange", "Pink"];
 var bounding = canvas.getBoundingClientRect();
-var socket = io({"forceNew": true});
+var socket = new WebSocket("0.0.0.0:8001");
 var enemies = {};
 var deltaTime = 1;
 var lastTime = new Date().getTime();
@@ -172,53 +172,49 @@ function click(e){
     }
 }
 
-socket.on("connect", function (){
-    player.id = socket.io.engine.id;
-    socket.emit("join", player);
-})
-    
-socket.on("FetchedPlayers", function (data){
-    enemies = JSON.parse(data);
-    setInterval(render, 30);
-    setInterval(sendUpdate, 150);
-    fetched = true;
+window.addEventListener("DOMContentLoaded", ()=>{
+    socket.send(JSON.stringify({event: "join", player: player}))
 })
 
-socket.on("NewPlayer", function (data){
-    enemies[data.id] = data;
-})
+socket.addEventListener("message", ({ data }) => {
+    const event = JSON.parse(data);
+    switch(event.event){
+        case "FetchedPlayers":
+            enemies = event.enemies;
+            player.id = event.id;
+            setInterval(render, 30);
+            setInterval(sendUpdate, 150);
+            fetched = true;
+        case "NewPlayer":
+            enemies[event.player.id] = event.player;
+        case "update":
+            if (fetched){
+                if (event.id == player.id){
+                    document.getElementById("ping").innerHTML = Math.floor(new Date().getTime() - player.lastUpdate) + " ms";
+                }
+                else{
+                    var deltaUpdate = (new Date().getTime() - enemies[event.id].lastUpdate) / 1000;
+                    console.log(deltaUpdate)
+                    if (deltaUpdate > 0.3){
+                        var newVelocity = [(event.position[0] - enemies[event.id].position[0])/deltaUpdate, (event.position[1] - enemies[event.id].position[1])/deltaUpdate]
+                        enemies[event.id].velocity = newVelocity;
+                        enemies[event.id].lastUpdate = new Date().getTime();
+                        enemies[event.id].nextPos = event.position;
+                        enemies[event.id].hits = event.hits;
+                    }
+                }
+            }
+        case "Left":
+            delete enemies[event.id];
+        case "projectile":
+            projectiles.push(new Projectile(event.position, event.velocity, event.id))
+    }
+});
 
 function sendUpdate(){
-    socket.emit("update", {position: player.position, id: player.id, hits: player.hits});
+    socket.send(JSON.stringify({event: "update", position: player.position, id: player.id, hits: player.hits}));
     player.lastUpdate = new Date().getTime();
 }
-
-socket.on("update", function(data){
-    if (fetched){
-        if (data.id == player.id){
-            document.getElementById("ping").innerHTML = Math.floor(new Date().getTime() - player.lastUpdate) + " ms";
-        }
-        else{
-            var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
-            console.log(deltaUpdate)
-            if (deltaUpdate > 0.3){
-                var newVelocity = [(data.position[0] - enemies[data.id].position[0])/deltaUpdate, (data.position[1] - enemies[data.id].position[1])/deltaUpdate]
-                enemies[data.id].velocity = newVelocity;
-                enemies[data.id].lastUpdate = new Date().getTime();
-                enemies[data.id].nextPos = data.position;
-                enemies[data.id].hits = data.hits;
-            }
-        }
-    }
-})
-
-socket.on("Left", function(id){
-    delete enemies[id];
-})
-
-socket.on("projectile", function(projectile){
-    projectiles.push(projectile)
-})
 
 function normalize(vector, targetMag){
     var mag = 0;

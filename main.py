@@ -4,13 +4,15 @@ import json
 import secrets
 import logging
 from engineio.payload import Payload
+import asyncio
+import websockets
 
 Payload.max_decode_packets = 2000
 
 async_mode = None
 
 players = {}
-serverPlayers = {}
+connected = {websocket}
 
 #Sets up flask and socketio server
 app = Flask(__name__)
@@ -29,34 +31,49 @@ def main():
 def home():
     return render_template("home.html", sync_mode=socketio.async_mode)
 
+async def handler(websocket):
+    async for message in websocket:
+        try:
+            message = await websocket.recv()
+            if message.event == "join":
+                join(message, websocket)
+            elif message.event == "update":
+                update(message, websocket)
+            elif message.event == "projectile":
+                projectile(message, websocket)
+        except websockets.ConnectionClosedOK:
+            disconnect(websocket)
+
+
+async def socket():
+    async with websockets.serve(handler, "0.0.0.0", 8001):
+        await asyncio.Future()
+
 #Either creates a room or puts the user in one
-@socketio.event
-def join(data):
-    emit("FetchedPlayers", json.dumps(players))
-    emit("NewPlayer", data, broadcast=True, include_self=False)
-    players[data["id"]] = data
-    serverPlayers[request.sid] = data
+async def join(data, socket):
+    socket.send(json.dumps({"event": "FetchedPlayers", "enemies": json.dumps(players), "id": id(socket)}))
+    data["player"]["id"] = id(socket)
+    for connection in players:
+        await connection.send(json.dumps({"event": "NewPlayer", "player": data["player"]}))
     print(data["name"] + " joined")
+    players[id(socket)] = data["player"]
+    connected.add(socket)
 
-@socketio.event
-def update(data):
-    emit("update", data, broadcast=True)
-    serverPlayers[request.sid]["position"] = data["position"]
-    serverPlayers[request.sid]["hits"] = data["hits"]
-    players[data["id"]] = serverPlayers[request.sid]
+async def update(data, socket):
+    for connection in connected:
+        await connection.send(json.dumps({"event": "update", "data": data}))
+    players[id(socket)] = data
 
-@socketio.event
-def projectile(projectile):
+async def projectile(projectile, socket):
     emit("projectile", projectile, broadcast=True, include_self=False)
 
 #Closes rooms when someone disconnects
-@socketio.event
-def disconnect():
-    emit("Left", serverPlayers[request.sid]["id"], broadcast=True, include_self=False)
-    print(serverPlayers[request.sid]["name"] + " left")
-    players.pop(serverPlayers[request.sid]["id"])
-    serverPlayers.pop(request.sid)
+async def disconnect(socket):
+    websockets.broadcast(connected, json.dumps({"event": "Left", "id": id(socket)}))
+    print(players[id(socket)]["name"] + " left")
+    players.pop(serverPlayers[id(socket)])
         
 #Hosts website
 if __name__ == "__main__":
     socketio.run(app, debug=True, host="0.0.0.0")
+    asyncio.run(socket())
