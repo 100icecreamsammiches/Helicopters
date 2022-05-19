@@ -15,7 +15,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <script src="{{ url_for('static', filename='main.js') }}"></script>
 	<br>
-    <p id="enemy" class="status" style="right: 10px;">HELICOPTERS</p>
+    <p id="enemy" class="status" style="right: 10px; top: 10px;">HELICOPTERS</p>
+    <p id="fps" class="status" style="position: fixed; left: 10px; bottom:10px;"></p>
+    <p id="ping" class="status" style="position: fixed; right: 10px; bottom:10px;"></p>
   </div>
   </body>
 </html>

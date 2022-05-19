@@ -40,9 +40,10 @@ def join(data):
 
 @socketio.event
 def update(data):
-    emit("update", data, broadcast=True, include_self=False)
-    serverPlayers[request.sid] = data
-    players[data["id"]] = data
+    emit("update", data, broadcast=True)
+    serverPlayers[request.sid]["position"] = data["position"]
+    serverPlayers[request.sid]["hits"] = data["hits"]
+    players[data["id"]] = serverPlayers[request.sid]
 
 @socketio.event
 def projectile(projectile):

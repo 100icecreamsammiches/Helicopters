@@ -128,7 +128,7 @@ function render(){
         document.getElementById("enemy").innerHTML += '<span style="color:' + enemies[i].color + '">' + enemies[i].name + ": " + enemies[i].hits + "</span> <br>";
     }
 
-    document.getElementById("player").innerHTML += "<br>" + Math.floor(1/deltaTime) + " fps"
+    document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps"
 }
 
 document.onkeydown = keyPress;
@@ -189,19 +189,25 @@ socket.on("NewPlayer", function (data){
 })
 
 function sendUpdate(){
-    socket.emit("update", player);
+    socket.emit("update", {position: player.position, id: player.id, hits: player.hits});
+    player.lastUpdate = new Date().getTime();
 }
 
 socket.on("update", function(data){
     if (fetched){
-        var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
-        console.log(deltaUpdate)
-        if (deltaUpdate > 0.3){
-            var newVelocity = [(data.position[0] - enemies[data.id].position[0])/deltaUpdate, (data.position[1] - enemies[data.id].position[1])/deltaUpdate]
-            enemies[data.id].velocity = newVelocity;
-            enemies[data.id].lastUpdate = new Date().getTime();
-            enemies[data.id].nextPos = data.position;
-            enemies[data.id].hits = data.hits;
+        if (data.id == player.id){
+            document.getElementById("ping").innerHTML = Math.floor(new Date().getTime() - player.lastUpdate) + " ms";
+        }
+        else{
+            var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
+            console.log(deltaUpdate)
+            if (deltaUpdate > 0.3){
+                var newVelocity = [(data.position[0] - enemies[data.id].position[0])/deltaUpdate, (data.position[1] - enemies[data.id].position[1])/deltaUpdate]
+                enemies[data.id].velocity = newVelocity;
+                enemies[data.id].lastUpdate = new Date().getTime();
+                enemies[data.id].nextPos = data.position;
+                enemies[data.id].hits = data.hits;
+            }
         }
     }
 })
