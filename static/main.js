@@ -81,7 +81,6 @@ function render(){
     if (Math.sqrt(player.velocity[0] ** 2 + player.velocity[1] ** 2) > maxSpeed){
         player.velocity = normalize(player.velocity, maxSpeed);
     }
-    
     for (var i = 0; i < projectiles.length; i++){
         var proj = projectiles[i];
         proj.position[0] += proj.velocity[0] * deltaTime;
@@ -90,9 +89,15 @@ function render(){
         context.fillStyle = "#FF0000";
         context.arc(proj.position[0] * canvas.width, proj.position[1] * canvas.height, 0.025 * canvas.width, 0, 2*Math.PI);
         context.fill();
-        if (Math.abs(proj.position[0] - player.position[0]) < 0.1 && Math.abs(proj.position[1] - player.position[1]) < 0.1 && proj.id != player.id){
+        if (Math.abs(proj.position[0] - (player.position[0]+0.05)) < 0.1 && Math.abs(proj.position[1] - (player.position[1]+0.05)) < 0.1 && proj.id != player.id){
             player.hits += 1;
             proj.position[0] = 10;
+        }
+        for (var j of Object.keys(enemies)){
+            var enemy = enemies[j]
+            if (Math.abs(proj.position[0] - (enemy.position[0]+0.075)) < 0.05 && Math.abs(proj.position[1] - (enemy.position[1]+0.075)) < 0.05 && proj.id != enemy.id){
+                proj.position[0] = 10;
+            }
         }
         if (proj.position[0] < 0.025 || proj.position[0] > 0.975 || proj.position[1] < 0.025 || proj.position[1] > 0.975){
             projectiles.splice(i,1);
@@ -108,8 +113,9 @@ function render(){
         var enemy = enemies[i];
         enemy.position[0] = Math.max(Math.min(enemy.position[0] + enemy.velocity[0]*deltaTime, 0.9), 0);
         enemy.position[1] = Math.max(Math.min(enemy.position[1] + enemy.velocity[1]*deltaTime, 0.9), 0);
-        if (Math.abs(enemy.position[0]-enemy.nextPos[0]) < 0.01 &&Math.abs(enemy.position[1]-enemy.nextPos[1]) < 0.01){
+        if (Math.abs(enemy.position[0]-enemy.nextPos[0]) < 0.005 && Math.abs(enemy.position[1]-enemy.nextPos[1]) < 0.005){
             enemy.velocity = [0,0];
+            enemy.position = enemy.nextPos;
         }
         context.beginPath();
         context.fillStyle = enemy.color;
@@ -160,7 +166,7 @@ function click(e){
         if (mousePos.every(i=>0<i && i<1)){
             vector = [mousePos[0] - (player.position[0] + 0.05), mousePos[1] - (player.position[1] + 0.05)]
             vector = normalize(vector, 0.5)
-            projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0] * 4 , player.position[1] + 0.05 + vector[1] * 4], vector, player.id))
+            projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0]*deltaTime*4, player.position[1] + 0.05 + vector[1]*deltaTime*4], vector, player.id))
             socket.emit("projectile", projectiles[projectiles.length-1])
         }
     }
@@ -191,10 +197,11 @@ socket.on("update", function(data){
         var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
         console.log(deltaUpdate)
         if (deltaUpdate > 0.3){
-            var newVelocity = [(data.position[0] - enemies[data.id].position[0])*2/deltaUpdate, (data.position[1] - enemies[data.id].position[1])*2/deltaUpdate]
+            var newVelocity = [(data.position[0] - enemies[data.id].position[0])/deltaUpdate, (data.position[1] - enemies[data.id].position[1])/deltaUpdate]
             enemies[data.id].velocity = newVelocity;
             enemies[data.id].lastUpdate = new Date().getTime();
             enemies[data.id].nextPos = data.position;
+            enemies[data.id].hits = data.hits;
         }
     }
 })
