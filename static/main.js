@@ -3,19 +3,21 @@ const canvas = document.getElementById("main-canvas");
 const context = canvas.getContext("2d");
 const colors = ["Red", "Green", "Blue", "Green", "Purple", "Cyan", "Yellow", "Orange", "Pink"];
 var bounding = canvas.getBoundingClientRect();
-var socket = new WebSocket("0.0.0.0:8001");
 var enemies = {};
 var deltaTime = 1;
 var lastTime = new Date().getTime();
 var acceleration = 1.4;
 var maxSpeed = 0.25;
 var fetched = false;
+var socket;
+
+
 
 var hash = window.location.hash
 if (hash == "" || hash == "#"){
-    var name = "Guest";
+    var username = "Guest";
 } else{
-    var name = hash.slice(1, 15);
+    var username = hash.slice(1, 15);
 }
 
 //Graphics and formatting details
@@ -49,7 +51,7 @@ class Player{
     }
 }
 
-var player = new Player([Math.random() * 0.9, Math.random() * 0.9], socket.io.engine.id, name, colors[Math.floor(Math.random()*colors.length)]);
+var player = new Player([Math.random() * 0.9, Math.random() * 0.9], 1234, username, colors[Math.floor(Math.random()*colors.length)]);
 var input = [0, 0];
 var projectiles = [];
 var count = 0;
@@ -131,10 +133,6 @@ function render(){
     document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps"
 }
 
-document.onkeydown = keyPress;
-document.onkeyup = keyUp;
-document.onmousedown = click;
-
 function keyPress(e){
     if (e.key == "w"){
         input[1] = -1;
@@ -166,27 +164,33 @@ function click(e){
         if (mousePos.every(i=>0<i && i<1)){
             vector = [mousePos[0] - (player.position[0] + 0.05), mousePos[1] - (player.position[1] + 0.05)]
             vector = normalize(vector, 0.5)
-            projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0]*deltaTime*4, player.position[1] + 0.05 + vector[1]*deltaTime*4], vector, player.id))
-            socket.emit("projectile", projectiles[projectiles.length-1])
+            socket.send(JSON.stringify({event:"projectile", projectile:new Projectile([player.position[0] + 0.05 + vector[0]*deltaTime*4, player.position[1] + 0.05 + vector[1]*deltaTime*4], vector, player.id)}))
         }
     }
 }
 
 window.addEventListener("DOMContentLoaded", ()=>{
-    socket.send(JSON.stringify({event: "join", player: player}))
+    socket = new WebSocket("ws://localhost:8001/");
+    socket.addEventListener("open", ()=>socket.send(JSON.stringify({event: "join", player: player})));
+    socket.addEventListener("message", message);
 })
 
-socket.addEventListener("message", ({ data }) => {
-    const event = JSON.parse(data);
+function message(data){
+    const event = JSON.parse(data.data);
     switch(event.event){
         case "FetchedPlayers":
-            enemies = event.enemies;
+            enemies = JSON.parse(event.enemies);
             player.id = event.id;
+            document.onkeydown = keyPress;
+            document.onkeyup = keyUp;
+            document.onmousedown = click;
             setInterval(render, 30);
             setInterval(sendUpdate, 150);
             fetched = true;
+            break;
         case "NewPlayer":
             enemies[event.player.id] = event.player;
+            break;
         case "update":
             if (fetched){
                 if (event.id == player.id){
@@ -194,7 +198,6 @@ socket.addEventListener("message", ({ data }) => {
                 }
                 else{
                     var deltaUpdate = (new Date().getTime() - enemies[event.id].lastUpdate) / 1000;
-                    console.log(deltaUpdate)
                     if (deltaUpdate > 0.3){
                         var newVelocity = [(event.position[0] - enemies[event.id].position[0])/deltaUpdate, (event.position[1] - enemies[event.id].position[1])/deltaUpdate]
                         enemies[event.id].velocity = newVelocity;
@@ -204,12 +207,15 @@ socket.addEventListener("message", ({ data }) => {
                     }
                 }
             }
+            break;
         case "Left":
             delete enemies[event.id];
+            break;
         case "projectile":
-            projectiles.push(new Projectile(event.position, event.velocity, event.id))
+            projectiles.push(event.projectile)
+            break;
     }
-});
+}
 
 function sendUpdate(){
     socket.send(JSON.stringify({event: "update", position: player.position, id: player.id, hits: player.hits}));
