@@ -4,6 +4,7 @@ const context = canvas.getContext("2d");
 const colors = ["Red", "Green", "Blue", "Green", "Purple", "Cyan", "Yellow", "Orange", "Pink"];
 var bounding = canvas.getBoundingClientRect();
 var socket = io({"forceNew": true});
+var players = {};
 var enemies = {};
 var deltaTime = 1;
 var lastTime = new Date().getTime();
@@ -46,6 +47,7 @@ class Player{
         this.color = color;
         this.lastUpdate = new Date().getTime();
         this.nextPos = position;
+        this.input = [0,0]
     }
 }
 
@@ -61,26 +63,7 @@ function render(){
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#BBBBBB";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    
-    player.velocity[0] = player.velocity[0] + (input[0] * acceleration * 2 * deltaTime);
-    player.velocity[1] = player.velocity[1] + (input[1] * acceleration * 2 * deltaTime);
 
-    if (player.velocity[0] < 0){
-        player.velocity[0] = Math.min(player.velocity[0] + acceleration*deltaTime, 0);
-    }
-    if (player.velocity[0] > 0){
-        player.velocity[0] = Math.max(player.velocity[0] - acceleration*deltaTime, 0);
-    }
-    if (player.velocity[1] < 0){
-        player.velocity[1] = Math.min(player.velocity[1] + acceleration*deltaTime, 0);
-    }
-    if (player.velocity[1] > 0){
-        player.velocity[1] = Math.max(player.velocity[1] - acceleration*deltaTime, 0);
-    }
-
-    if (Math.sqrt(player.velocity[0] ** 2 + player.velocity[1] ** 2) > maxSpeed){
-        player.velocity = normalize(player.velocity, maxSpeed);
-    }
     for (var i = 0; i < projectiles.length; i++){
         var proj = projectiles[i];
         proj.position[0] += proj.velocity[0] * deltaTime;
@@ -94,8 +77,8 @@ function render(){
             proj.position[0] = 10;
         }
         for (var j of Object.keys(enemies)){
-            var enemy = enemies[j]
-            if (Math.abs(proj.position[0] - (enemy.position[0]+0.075)) < 0.05 && Math.abs(proj.position[1] - (enemy.position[1]+0.075)) < 0.05 && proj.id != enemy.id){
+            var person = enemies[j]
+            if (Math.abs(proj.position[0] - (person.position[0]+0.075)) < 0.05 && Math.abs(proj.position[1] - (person.position[1]+0.075)) < 0.05 && proj.id != person.id){
                 proj.position[0] = 10;
             }
         }
@@ -103,23 +86,40 @@ function render(){
             projectiles.splice(i,1);
         }
     }
+    
+    for (var i of Object.keys(players)){
+        var person = players[i];
+    
+        person.velocity[0] = person.velocity[0] + (person.input[0] * acceleration * 2 * deltaTime);
+        person.velocity[1] = person.velocity[1] + (person.input[1] * acceleration * 2 * deltaTime);
+    
+        if (person.velocity[0] < 0){
+            person.velocity[0] = Math.min(person.velocity[0] + acceleration*deltaTime, 0);
+        }
+        if (person.velocity[0] > 0){
+            person.velocity[0] = Math.max(person.velocity[0] - acceleration*deltaTime, 0);
+        }
+        if (person.velocity[1] < 0){
+            person.velocity[1] = Math.min(person.velocity[1] + acceleration*deltaTime, 0);
+        }
+        if (person.velocity[1] > 0){
+            person.velocity[1] = Math.max(person.velocity[1] - acceleration*deltaTime, 0);
+        }
+    
+        if (Math.sqrt(person.velocity[0] ** 2 + person.velocity[1] ** 2) > maxSpeed){
+            person.velocity = normalize(person.velocity, maxSpeed);
+        }
 
-    player.position[0] = Math.max(Math.min(player.position[0] + player.velocity[0]*deltaTime, 0.9), 0);
-    player.position[1] = Math.max(Math.min(player.position[1] + player.velocity[1]*deltaTime, 0.9), 0);
-    context.beginPath();
-    context.fillStyle = player.color;
-    context.fillRect((player.position[0] * canvas.width), (player.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
-    for (var i of Object.keys(enemies)){
-        var enemy = enemies[i];
-        enemy.position[0] = Math.max(Math.min(enemy.position[0] + enemy.velocity[0]*deltaTime, 0.9), 0);
-        enemy.position[1] = Math.max(Math.min(enemy.position[1] + enemy.velocity[1]*deltaTime, 0.9), 0);
-        if (Math.abs(enemy.position[0]-enemy.nextPos[0]) < 0.005 && Math.abs(enemy.position[1]-enemy.nextPos[1]) < 0.005){
-            enemy.velocity = [0,0];
-            enemy.position = enemy.nextPos;
+        person.position[0] = Math.max(Math.min(person.position[0] + person.velocity[0]*deltaTime, 0.9), 0);
+        person.position[1] = Math.max(Math.min(person.position[1] + person.velocity[1]*deltaTime, 0.9), 0);
+
+        if (Math.abs(person.position[0]-person.nextPos[0]) < 0.005 && Math.abs(person.position[1]-person.nextPos[1]) < 0.005){
+            person.velocity = [0,0];
+            person.position = person.nextPos;
         }
         context.beginPath();
-        context.fillStyle = enemy.color;
-        context.fillRect((enemy.position[0] * canvas.width), (enemy.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
+        context.fillStyle = person.color;
+        context.fillRect((person.position[0] * canvas.width), (person.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
     }
 
     document.getElementById("player").innerHTML = '<span style="color:' + player.color + '">' + player.name + ": " + player.hits + "</span>";
@@ -131,31 +131,33 @@ function render(){
     document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps"
 }
 
-document.onkeydown = keyPress;
+document.onkeypress = keyPress;
 document.onkeyup = keyUp;
 document.onmousedown = click;
 
 function keyPress(e){
     if (e.key == "w"){
-        input[1] = -1;
+        player.input[1] = -1;
     }
     if (e.key == "s"){
-        input[1] = 1;
+        player.input[1] = 1;
     }
     if (e.key == "a"){
-        input[0] = -1;
+        player.input[0] = -1;
     }
     if (e.key == "d"){
-        input[0] = 1;
+        player.input[0] = 1;
     }
+    socket.emit("input", {input: player.input, id: player.id});
 }
 function keyUp(e){
     if (e.key == "w" || e.key == "s"){
-        input[1] = 0;
+        player.input[1] = 0;
     }
     if (e.key == "a" || e.key == "d"){
-        input[0] = 0
+        player.input[0] = 0
     }
+    socket.emit("input", {input: player.input, id: player.id});
 }
 function click(e){
     if (e.button == 0){
@@ -179,8 +181,10 @@ socket.on("connect", function (){
     
 socket.on("FetchedPlayers", function (data){
     enemies = JSON.parse(data);
+    players = JSON.parse(JSON.stringify(enemies));
+    players[player.id] = player;
     setInterval(render, 30);
-    setInterval(sendUpdate, 150);
+    setInterval(sendUpdate, 1000);
     fetched = true;
 })
 
@@ -189,9 +193,13 @@ socket.on("NewPlayer", function (data){
 })
 
 function sendUpdate(){
-    socket.emit("update", {position: player.position, id: player.id, hits: player.hits});
+    socket.emit("update", {position: player.position, id: player.id, hits:player.hits});
     player.lastUpdate = new Date().getTime();
 }
+
+socket.on("input", function(data){
+    enemies[data.id].input = data.input;
+})
 
 socket.on("update", function(data){
     if (fetched){
@@ -199,15 +207,10 @@ socket.on("update", function(data){
             document.getElementById("ping").innerHTML = Math.floor(new Date().getTime() - player.lastUpdate) + " ms";
         }
         else{
-            var deltaUpdate = (new Date().getTime() - enemies[data.id].lastUpdate) / 1000;
-            console.log(deltaUpdate)
-            if (deltaUpdate > 0.3){
-                var newVelocity = [(data.position[0] - enemies[data.id].position[0])/deltaUpdate, (data.position[1] - enemies[data.id].position[1])/deltaUpdate]
-                enemies[data.id].velocity = newVelocity;
-                enemies[data.id].lastUpdate = new Date().getTime();
-                enemies[data.id].nextPos = data.position;
-                enemies[data.id].hits = data.hits;
-            }
+            enemies[data.id].position = data.position;
+            enemies[data.id].hits = data.hits;
+            players[data.id].position = data.position;
+            players[data.id].hits = data.hits;
         }
     }
 })

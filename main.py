@@ -46,6 +46,10 @@ def update(data):
     players[data["id"]] = serverPlayers[request.sid]
 
 @socketio.event
+def input(data):
+    emit("input", data, broadcast=True, include_self=False)
+
+@socketio.event
 def projectile(projectile):
     emit("projectile", projectile, broadcast=True, include_self=False)
 
