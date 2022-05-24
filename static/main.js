@@ -188,7 +188,7 @@ socket.on("FetchedPlayers", function (data){
     players = JSON.parse(JSON.stringify(enemies));
     players[player.id] = player;
     setInterval(render, 30);
-    setInterval(sendUpdate, 1000);
+    setInterval(sendUpdate, 500);
     fetched = true;
 })
 
