@@ -11,6 +11,7 @@ var lastTime = new Date().getTime();
 var acceleration = 1.4;
 var maxSpeed = 0.25;
 var fetched = false;
+var heldKeys = [0,0,0,0]
 
 var hash = window.location.hash
 if (hash == "" || hash == "#"){
@@ -135,31 +136,38 @@ document.onkeyup = keyUp;
 document.onmousedown = click;
 
 function keyPress(e){
-    var newInput = player.input;
     if (e.key == "w"){
-        newInput[1] = -1;
+        heldKeys[0] = -1
     }
     if (e.key == "s"){
-        newInput[1] = 1;
+        heldKeys[1] = 1
     }
     if (e.key == "a"){
-        newInput[0] = -1;
+        heldKeys[2] = -1
     }
     if (e.key == "d"){
-        newInput[0] = 1;
+        heldKeys[3] = 1
     }
+    var newInput = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]]
     if (player.input[0] != newInput[0] || player.input[1] != newInput[1]){
         player.input = newInput
         socket.emit("input", {input: player.input, id: player.id});
     }
 }
 function keyUp(e){
-    if (e.key == "w" || e.key == "s"){
-        player.input[1] = 0;
+    if (e.key == "w"){
+        heldKeys[0] = 0
     }
-    if (e.key == "a" || e.key == "d"){
-        player.input[0] = 0
+    if (e.key == "s"){
+        heldKeys[1] = 0
     }
+    if (e.key == "a"){
+        heldKeys[2] = 0
+    }
+    if (e.key == "d"){
+        heldKeys[3] = 0
+    }
+    player.input = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]]
     socket.emit("input", {input: player.input, id: player.id});
 }
 function click(e){
@@ -183,17 +191,15 @@ socket.on("connect", function (){
 })
     
 socket.on("FetchedPlayers", function (data){
-    console.log(data)
     enemies = data;
     players = JSON.parse(JSON.stringify(enemies));
     players[player.id] = player;
     setInterval(render, 30);
-    setInterval(sendUpdate, 1000);
+    setInterval(sendUpdate, 500);
     fetched = true;
 })
 
 socket.on("NewPlayer", function (data){
-    console.log(data)
     enemies[data.id] = data;
     players[data.id] = data;
 })
@@ -204,7 +210,6 @@ function sendUpdate(){
 }
 
 socket.on("input", function(data){
-    console.log("input")
     enemies[data.id].input = data.input;
     players[data.id].input = data.input;
 })
