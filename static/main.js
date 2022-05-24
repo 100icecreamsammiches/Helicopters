@@ -46,8 +46,8 @@ class Player{
         this.hits = 0;
         this.color = color;
         this.lastUpdate = new Date().getTime();
-        this.nextPos = position;
         this.input = [0,0]
+        this.truePos = [position[0], position[1]]
     }
 }
 
@@ -108,15 +108,14 @@ function render(){
     
         if (Math.sqrt(person.velocity[0] ** 2 + person.velocity[1] ** 2) > maxSpeed){
             person.velocity = normalize(person.velocity, maxSpeed);
-        }
-
+        }/*
+        if (person.id != player.id && (Math.abs(person.position[0] - person.truePos[0]) > 0.01 || Math.abs(person.position[1] - person.truePos[1]) > 0.01)){
+            person.velocity[0] += (person.truePos[0] - person.position[0]) / 4
+            person.velocity[1] += (person.truePos[1] - person.position[1]) / 4
+        }*/
         person.position[0] = Math.max(Math.min(person.position[0] + person.velocity[0]*deltaTime, 0.9), 0);
         person.position[1] = Math.max(Math.min(person.position[1] + person.velocity[1]*deltaTime, 0.9), 0);
 
-        if (Math.abs(person.position[0]-person.nextPos[0]) < 0.005 && Math.abs(person.position[1]-person.nextPos[1]) < 0.005){
-            person.velocity = [0,0];
-            person.position = person.nextPos;
-        }
         context.beginPath();
         context.fillStyle = person.color;
         context.fillRect((person.position[0] * canvas.width), (person.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
@@ -131,24 +130,28 @@ function render(){
     document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps"
 }
 
-document.onkeypress = keyPress;
+document.onkeydown = keyPress;
 document.onkeyup = keyUp;
 document.onmousedown = click;
 
 function keyPress(e){
+    var newInput = player.input;
     if (e.key == "w"){
-        player.input[1] = -1;
+        newInput[1] = -1;
     }
     if (e.key == "s"){
-        player.input[1] = 1;
+        newInput[1] = 1;
     }
     if (e.key == "a"){
-        player.input[0] = -1;
+        newInput[0] = -1;
     }
     if (e.key == "d"){
-        player.input[0] = 1;
+        newInput[0] = 1;
     }
-    socket.emit("input", {input: player.input, id: player.id});
+    if (player.input[0] != newInput[0] || player.input[1] != newInput[1]){
+        player.input = newInput
+        socket.emit("input", {input: player.input, id: player.id});
+    }
 }
 function keyUp(e){
     if (e.key == "w" || e.key == "s"){
@@ -180,7 +183,8 @@ socket.on("connect", function (){
 })
     
 socket.on("FetchedPlayers", function (data){
-    enemies = JSON.parse(data);
+    console.log(data)
+    enemies = data;
     players = JSON.parse(JSON.stringify(enemies));
     players[player.id] = player;
     setInterval(render, 30);
@@ -189,7 +193,9 @@ socket.on("FetchedPlayers", function (data){
 })
 
 socket.on("NewPlayer", function (data){
+    console.log(data)
     enemies[data.id] = data;
+    players[data.id] = data;
 })
 
 function sendUpdate(){
@@ -198,7 +204,9 @@ function sendUpdate(){
 }
 
 socket.on("input", function(data){
+    console.log("input")
     enemies[data.id].input = data.input;
+    players[data.id].input = data.input;
 })
 
 socket.on("update", function(data){
@@ -217,6 +225,7 @@ socket.on("update", function(data){
 
 socket.on("Left", function(id){
     delete enemies[id];
+    delete players[id];
 })
 
 socket.on("projectile", function(projectile){

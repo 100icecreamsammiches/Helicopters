@@ -14,7 +14,7 @@ serverPlayers = {}
 
 #Sets up flask and socketio server
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode=async_mode, ping_interval=10, ping_timeout=10)
+socketio = SocketIO(app, async_mode=async_mode, ping_interval=6, ping_timeout=6)
 
 #Disables logging
 log = logging.getLogger('werkzeug')
@@ -32,7 +32,7 @@ def home():
 #Either creates a room or puts the user in one
 @socketio.event
 def join(data):
-    emit("FetchedPlayers", json.dumps(players))
+    emit("FetchedPlayers", players)
     emit("NewPlayer", data, broadcast=True, include_self=False)
     players[data["id"]] = data
     serverPlayers[request.sid] = data
