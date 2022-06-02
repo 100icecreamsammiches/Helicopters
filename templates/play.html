@@ -8,9 +8,12 @@
     <title>Helicopters</title>
   </head>
   <body>
-    <p id="player" class="status">Connecting...</p>
-	<canvas name="main-canvas" id="main-canvas" class="canvas">
-		<p>Well That didn't work. Guess you're stupid</p>
+    <div style="height: 60%; width: 20%; position: fixed; margin: 0px;">
+        <p id="chat"></p>
+        <input type="text" style="font-family: Verdana; height: 5%; width: 98%; margin-top: 5%;" id="chatInput" autocomplete="off">
+    </div>
+    <canvas name="main-canvas" id="main-canvas" class="canvas">
+	    <p>Well That didn't work. Guess you're stupid</p>
 	</canvas>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <script src="{{ url_for('static', filename='main.js') }}"></script>

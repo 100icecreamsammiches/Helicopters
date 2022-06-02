@@ -1,7 +1,7 @@
 //Basic document details
 const canvas = document.getElementById("main-canvas");
 const context = canvas.getContext("2d");
-const colors = ["Red", "Green", "Blue", "Green", "Purple", "Cyan", "Yellow", "Orange", "Pink"];
+const colors = ["Red", "Green", "Blue", "Green", "Purple", "Cyan", "Yellow", "Orange", "Pink", "Aquamarine", "Chartreuse", "DarkMagenta"];
 var bounding = canvas.getBoundingClientRect();
 var socket = io({"forceNew": true});
 var players = {};
@@ -9,15 +9,22 @@ var enemies = {};
 var deltaTime = 1;
 var lastTime = new Date().getTime();
 var acceleration = 1.4;
-var maxSpeed = 0.25;
+var maxSpeed = 0.4;
 var fetched = false;
-var heldKeys = [0,0,0,0]
+var heldKeys = [0,0,0,0];
+var canShoot = true;
 
-var hash = window.location.hash
-if (hash == "" || hash == "#"){
+var params = new URLSearchParams(window.location.search)
+if (!params.has("name") || params.get("name") == ""){
     var name = "Guest";
 } else{
-    var name = hash.slice(1, 15);
+    var name = decodeURI(params.get("name").slice(0, 15));
+}
+
+if (!params.has("color") || !isValidColor(params.get("color"))){
+    var color = colors[Math.floor(Math.random()*colors.length)];
+} else{
+    var color = decodeURI(params.get("color"));
 }
 
 //Graphics and formatting details
@@ -47,12 +54,12 @@ class Player{
         this.hits = 0;
         this.color = color;
         this.lastUpdate = new Date().getTime();
-        this.input = [0,0]
-        this.truePos = [position[0], position[1]]
+        this.input = [0,0];
+        this.truePos = [position[0], position[1]];
     }
 }
 
-var player = new Player([Math.random() * 0.9, Math.random() * 0.9], socket.io.engine.id, name, colors[Math.floor(Math.random()*colors.length)]);
+var player = new Player([Math.random() * 0.9, Math.random() * 0.9], socket.io.engine.id, name, color);
 var input = [0, 0];
 var projectiles = [];
 var count = 0;
@@ -73,14 +80,13 @@ function render(){
         context.fillStyle = "#FF0000";
         context.arc(proj.position[0] * canvas.width, proj.position[1] * canvas.height, 0.025 * canvas.width, 0, 2*Math.PI);
         context.fill();
-        if (Math.abs(proj.position[0] - (player.position[0]+0.05)) < 0.1 && Math.abs(proj.position[1] - (player.position[1]+0.05)) < 0.1 && proj.id != player.id){
-            player.hits += 1;
-            proj.position[0] = 10;
-        }
-        for (var j of Object.keys(enemies)){
-            var person = enemies[j]
-            if (Math.abs(proj.position[0] - (person.position[0]+0.075)) < 0.05 && Math.abs(proj.position[1] - (person.position[1]+0.075)) < 0.05 && proj.id != person.id){
+        for (var j of Object.keys(players)){
+            var person = players[j]
+            if (Math.abs(proj.position[0] - (person.position[0]+0.05)) < 0.05 && Math.abs(proj.position[1] - (person.position[1]+0.05)) < 0.05 && proj.id != person.id){
                 proj.position[0] = 10;
+                if (proj.id == player.id){
+                    player.hits += 1;
+                }
             }
         }
         if (proj.position[0] < 0.025 || proj.position[0] > 0.975 || proj.position[1] < 0.025 || proj.position[1] > 0.975){
@@ -122,13 +128,12 @@ function render(){
         context.fillRect((person.position[0] * canvas.width), (person.position[1] * canvas.height),(canvas.width/10),(canvas.height/10));
     }
 
-    document.getElementById("player").innerHTML = '<span style="color:' + player.color + '">' + player.name + ": " + player.hits + "</span>";
-    document.getElementById("enemy").innerHTML = "";
+    document.getElementById("enemy").innerHTML = '<span style="color:' + player.color + '">' + player.name + ": " + player.hits + "</span> <br>";
     for(var i of Object.keys(enemies)){
         document.getElementById("enemy").innerHTML += '<span style="color:' + enemies[i].color + '">' + enemies[i].name + ": " + enemies[i].hits + "</span> <br>";
     }
 
-    document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps"
+    document.getElementById("fps").innerHTML = Math.floor(1/deltaTime) + " fps";
 }
 
 document.onkeydown = keyPress;
@@ -136,39 +141,43 @@ document.onkeyup = keyUp;
 document.onmousedown = click;
 
 function keyPress(e){
-    if (e.key == "w"){
-        heldKeys[0] = -1
-    }
-    if (e.key == "s"){
-        heldKeys[1] = 1
-    }
-    if (e.key == "a"){
-        heldKeys[2] = -1
-    }
-    if (e.key == "d"){
-        heldKeys[3] = 1
-    }
-    var newInput = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]]
-    if (player.input[0] != newInput[0] || player.input[1] != newInput[1]){
-        player.input = newInput
-        socket.emit("input", {input: player.input, id: player.id});
+    if (document.activeElement.id != "chatInput"){
+        if (e.key == "w"){
+            heldKeys[0] = -1;
+        }
+        if (e.key == "s"){
+            heldKeys[1] = 1;
+        }
+        if (e.key == "a"){
+            heldKeys[2] = -1;
+        }
+        if (e.key == "d"){
+            heldKeys[3] = 1;
+        }
+        var newInput = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]];
+        if (player.input[0] != newInput[0] || player.input[1] != newInput[1]){
+            player.input = newInput;
+            socket.emit("input", {input: player.input, id: player.id});
+        }
     }
 }
 function keyUp(e){
-    if (e.key == "w"){
-        heldKeys[0] = 0
+    if (document.activeElement.id != "chatInput"){
+        if (e.key == "w"){
+            heldKeys[0] = 0;
+        }
+        if (e.key == "s"){
+            heldKeys[1] = 0;
+        }
+        if (e.key == "a"){
+            heldKeys[2] = 0;
+        }
+        if (e.key == "d"){
+            heldKeys[3] = 0;
+        }
+        player.input = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]];
+        socket.emit("input", {input: player.input, id: player.id});
     }
-    if (e.key == "s"){
-        heldKeys[1] = 0
-    }
-    if (e.key == "a"){
-        heldKeys[2] = 0
-    }
-    if (e.key == "d"){
-        heldKeys[3] = 0
-    }
-    player.input = [heldKeys[2] + heldKeys[3], heldKeys[0] + heldKeys[1]]
-    socket.emit("input", {input: player.input, id: player.id});
 }
 function click(e){
     if (e.button == 0){
@@ -176,11 +185,13 @@ function click(e){
 			Math.floor(e.clientX - leftBound) / canvas.width,
 			Math.floor(e.clientY - bounding.top) / canvas.height
 		]
-        if (mousePos.every(i=>0<i && i<1)){
-            vector = [mousePos[0] - (player.position[0] + 0.05), mousePos[1] - (player.position[1] + 0.05)]
-            vector = normalize(vector, 0.5)
-            projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0]*deltaTime*4, player.position[1] + 0.05 + vector[1]*deltaTime*4], vector, player.id))
-            socket.emit("projectile", projectiles[projectiles.length-1])
+        if (mousePos.every(i=>0<i && i<1) && canShoot){
+            canShoot = false;
+            setTimeout(()=>canShoot = true, 500);
+            vector = [mousePos[0] - (player.position[0] + 0.05), mousePos[1] - (player.position[1] + 0.05)];
+            vector = normalize(vector, 1);
+            projectiles.push(new Projectile([player.position[0] + 0.05 + vector[0]*deltaTime*4, player.position[1] + 0.05 + vector[1]*deltaTime*4], vector, player.id));
+            socket.emit("projectile", projectiles[projectiles.length-1]);
         }
     }
 }
@@ -194,7 +205,12 @@ socket.on("FetchedPlayers", function (data){
     enemies = data;
     players = JSON.parse(JSON.stringify(enemies));
     players[player.id] = player;
-    setInterval(render, 30);
+    var highestTimeoutId = setTimeout(";");
+    console.log(highestTimeoutId);
+    for (var i = 0 ; i < highestTimeoutId ; i++) {
+        clearTimeout(i); 
+    }
+    setInterval(render, 15);
     setInterval(sendUpdate, 500);
     fetched = true;
 })
@@ -234,7 +250,13 @@ socket.on("Left", function(id){
 })
 
 socket.on("projectile", function(projectile){
-    projectiles.push(projectile)
+    projectiles.push(projectile);
+})
+
+socket.on("chat", function(data){
+    var chat = document.getElementById("chat");
+    chat.innerHTML += '<span style="color: ' + data.color + '">' + data.name + ":</span> " + data.content.replaceAll("<", "").replaceAll(">", "") + "<br>";
+    chat.scrollTo(0, chat.scrollHeight);
 })
 
 function normalize(vector, targetMag){
@@ -247,4 +269,22 @@ function normalize(vector, targetMag){
         vector[i] = (vector[i] * targetMag) / mag;
     }
     return vector;
+}
+
+document.getElementById("chatInput").addEventListener("keypress", function(e) {
+    if (event.key === "Enter") {
+        if (document.getElementById("chatInput").value.includes("<script") || document.getElementById("chatInput").value.includes("<a")){
+            window.location.href = "https://www.google.com/search?q=why+cheating+is+bad&rlz=1CATAVM_enUS917US920&oq=why+cheating+is+bad&aqs=chrome..69i57j0i22i30l7j0i15i22i30j0i22i30.5805j0j7&sourceid=chrome&ie=UTF-8&safe=active&ssui=on"
+        }
+        e.preventDefault();
+        socket.emit("chat", {content: document.getElementById("chatInput").value.replaceAll('<', '').replaceAll('>', ''), name: player.name, color: player.color});
+        document.getElementById("chatInput").value = "";
+    }
+});
+
+function isValidColor(strColor) {
+    var s = new Option().style;
+    s.color = strColor;
+    console.log("color: " + s.color);
+    return s.color != "";
 }

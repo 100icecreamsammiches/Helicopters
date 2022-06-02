@@ -45,3 +45,15 @@ canvas {
     font-family: Verdana;
     font-size: 2vw;
 }
+
+#chat{
+    font-family: Verdana; 
+    height: 90%; 
+    width:100% 
+    text-align: left; 
+    font-size: 1.5vw; 
+    overflow-y: scroll; 
+    background: #88888888;
+    margin: 0px;
+    color: white;
+}

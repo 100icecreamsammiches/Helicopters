@@ -11,10 +11,11 @@
     <script src="{{ url_for('static', filename='home.js') }}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" crossorigin="anonymous"></script>
     <form class="home" id="homeform">
-        <input class="home" type="text" id="join" placeholder="Username">
-        <br>
-        <br>
-        <button id="createRoom" class="home" type="button" onclick="window.location.href += 'play#' + document.getElementById('join').value">Play!</button>
+        <input class="home" type="text" id="name" placeholder="Username" autocomplete="off">
+        <br><br>
+        <input class="home" type="text" id="color" placeholder="Color" autocomplete="off">
+        <br><br>
+        <button id="play" class="home" type="button" onclick="join">Play!</button>
     </form>
   </body>
 </html>

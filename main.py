@@ -50,6 +50,10 @@ def input(data):
     emit("input", data, broadcast=True, include_self=False)
 
 @socketio.event
+def chat(data):
+    emit("chat", data, broadcast=True)
+
+@socketio.event
 def projectile(projectile):
     emit("projectile", projectile, broadcast=True, include_self=False)
 
